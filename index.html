@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cancer Statistics Map Application</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <style>
+    #map {
+      min-height: 100vh;
+      height:100%;
+    }
+    #analytics {
+      padding: 20px;
+      background-color: #f8f9fa;
+    }
+    .cancer-icon {
+      background-color: rgba(255, 99, 132, 0.7);
+      color: white;
+      font-size: 14px;
+      text-align: center;
+      border-radius: 50%;
+      padding: 5px;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <!-- Bootstrap Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark mb-2" style="background-color: #000040;">
+    <a class="navbar-brand" href="#">Global cancer incidence in men including non-melanoma skin cancer</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+  </nav>
+
+  <!-- Map Container -->
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-lg-6">
+        <div id="analytics" class="text-center">
+          <h4>Cancer Statistics (Top 20 Countries)</h4>
+          <p id="totalCases">Total Cancer Cases: </p>
+          <p id="highestCases">Country with Highest Cases: </p>
+          <p id="lowestCases">Country with Lowest Cases: </p>
+          <canvas id="cancerChart" width="400" height="400"></canvas> <!-- Added Bar Chart Canvas -->
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div id="map"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet.js, Chart.js, and Bootstrap Scripts -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    // Initialize the map centered on a global view
+    var map = L.map('map').setView([20, 0], 2);
+
+    // Add tile layer (OpenStreetMap)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Example cancer data for top 20 countries (placeholders with male and female cases)
+    var cancerData = [
+            { "lat": 35.8617, "lng": 104.1954, "country": "China", "maleCases": 2533906, "femaleCases": 2290797 },
+            { "lat": 37.0902, "lng": -95.7129, "country": "United States of America", "maleCases": 1283898, "femaleCases": 1096291 },
+            { "lat": 20.5937, "lng": 78.9629, "country": "India", "maleCases": 691178, "femaleCases": 722138 },
+            { "lat": 36.2048, "lng": 138.2529, "country": "Japan", "maleCases": 580535, "femaleCases": 424622 },
+            { "lat": 61.5240, "lng": 105.3188, "country": "Russian Federation", "maleCases": 301496, "femaleCases": 334064 },
+            { "lat": -14.2350, "lng": -51.9253, "country": "Brazil", "maleCases": 319711, "femaleCases": 307482 },
+            { "lat": 51.1657, "lng": 10.4515, "country": "Germany", "maleCases": 323545, "femaleCases": 282260 },
+            { "lat": 46.6034, "lng": 1.8883, "country": "France (metropolitan)", "maleCases": 263339, "femaleCases": 220229 },
+            { "lat": -0.7893, "lng": 113.9213, "country": "Indonesia", "maleCases": 188395, "femaleCases": 220266 },
+            { "lat": 55.3781, "lng": -3.4360, "country": "United Kingdom", "maleCases": 242245, "femaleCases": 212709 },
+            { "lat": 41.8719, "lng": 12.5674, "country": "Italy", "maleCases": 232150, "femaleCases": 204092 },
+            { "lat": 56.1304, "lng": -106.3468, "country": "Canada", "maleCases": 153660, "femaleCases": 138438 },
+            { "lat": -25.2744, "lng": 133.7751, "country": "Australia", "maleCases": 116363, "femaleCases": 95969 },
+            { "lat": 12.8797, "lng": 121.7740, "country": "Philippines", "maleCases": 83064, "femaleCases": 105912 },
+            { "lat": 38.9637, "lng": 35.2433, "country": "Turkey", "maleCases": 132476, "femaleCases": 107537 },
+            { "lat": 23.6345, "lng": -102.5528, "country": "Mexico", "maleCases": 95954, "femaleCases": 111200 },
+            { "lat": 35.9078, "lng": 127.7669, "country": "Korea, Republic of", "maleCases": 128045, "femaleCases": 109656 },
+            { "lat": 15.8700, "lng": 100.9925, "country": "Thailand", "maleCases": 90333, "femaleCases": 93208 },
+            { "lat": 14.0583, "lng": 108.2772, "country": "Vietnam", "maleCases": 95358, "femaleCases": 85122 },
+            { "lat": 30.3753, "lng": 69.3451, "country": "Pakistan", "maleCases": 87568, "femaleCases": 98180 }
+        ];
+
+    // Function to calculate and display analytics
+    function calculateAnalytics(data) {
+      var totalMaleCases = 0;
+      var totalFemaleCases = 0;
+      var highestCases = data[0];
+      var lowestCases = data[0];
+
+      data.forEach(function(item) {
+        totalMaleCases += item.maleCases;
+        totalFemaleCases += item.femaleCases;
+        if (item.maleCases + item.femaleCases > highestCases.maleCases + highestCases.femaleCases) highestCases = item;
+        if (item.maleCases + item.femaleCases < lowestCases.maleCases + lowestCases.femaleCases) lowestCases = item;
+      });
+
+      // Update analytics section
+      document.getElementById('totalCases').innerText = 
+        "Total Male Cases: " + totalMaleCases.toLocaleString() + 
+        ", Total Female Cases: " + totalFemaleCases.toLocaleString();
+      document.getElementById('highestCases').innerText = 
+        "Country with Highest Cases: " + highestCases.country + " (" + (highestCases.maleCases + highestCases.femaleCases).toLocaleString() + " cases)";
+      document.getElementById('lowestCases').innerText = 
+        "Country with Lowest Cases: " + lowestCases.country + " (" + (lowestCases.maleCases + lowestCases.femaleCases).toLocaleString() + " cases)";
+
+      // Draw bar chart
+      drawBarChart(data);
+    }
+
+    function drawBarChart(data) {
+      var ctx = document.getElementById('cancerChart').getContext('2d');
+      var countries = data.map(item => item.country);
+      var maleCases = data.map(item => item.maleCases);
+      var femaleCases = data.map(item => item.femaleCases);
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: countries,
+          datasets: [
+            {
+              label: 'Male Cancer Cases',
+              data: maleCases,
+              backgroundColor: 'rgba(54, 162, 235, 0.7)',
+              borderColor: 'rgba(54, 162, 235, 1)',
+              borderWidth: 1
+            },
+            {
+              label: 'Female Cancer Cases',
+              data: femaleCases,
+              backgroundColor: 'rgba(255, 99, 132, 0.7)',
+              borderColor: 'rgba(255, 99, 132, 1)',
+              borderWidth: 1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: {
+              stacked: true,
+            },
+            y: {
+              stacked: true,
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    // Function to generate the donut chart HTML
+    function generateDonutChartHtml(maleCases, femaleCases) {
+      return '<canvas width="200" height="200"></canvas>';
+    }
+
+    // Loop through the cancer data and add markers with popups to the map
+    cancerData.forEach(function(data) {
+      // Create custom icon with total cases numbers
+      var iconHtml = '<div class="cancer-icon">' + (data.maleCases + data.femaleCases).toLocaleString() + '</div>';
+      var customIcon = L.divIcon({
+        html: iconHtml,
+        className: 'custom-div-icon',
+        iconSize: [50, 50],
+        popupAnchor: [0, -15]
+      });
+
+      var popupContent = "<b>Country:</b> " + data.country + "<br/><b>Male Cases:</b> " + data.maleCases.toLocaleString() + "<br/><b>Female Cases:</b> " + data.femaleCases.toLocaleString() + "<br/>" + generateDonutChartHtml(data.maleCases, data.femaleCases);
+      var marker = L.marker([data.lat, data.lng], { icon: customIcon }).bindPopup(popupContent).addTo(map);
+
+      marker.on('popupopen', function() {
+        var popup = marker.getPopup();
+        var canvas = popup.getElement().querySelector('canvas');
+        if (canvas) {
+          var ctx = canvas.getContext('2d');
+          new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+              labels: ['Male Cases', 'Female Cases'],
+              datasets: [{
+                data: [data.maleCases, data.femaleCases],
+                backgroundColor: ['#36A2EB', '#FF6384']
+              }]
+            },
+            options: {
+              responsive: false,
+              maintainAspectRatio: false
+            }
+          });
+        }
+      });
+    });
+
+    // Calculate and display analytics
+    calculateAnalytics(cancerData);
+  </script>
+</body>
+</html>
